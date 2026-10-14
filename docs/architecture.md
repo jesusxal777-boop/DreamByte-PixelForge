@@ -1,47 +1,59 @@
 # DreamByte PixelForge — architecture and database plan
 
-## Phase 1: static frontend on GitHub Pages
-- Publish HTML, CSS and JavaScript from this repository.
-- Implement drawing in the browser and make local editing available without an account.
-- Add IndexedDB autosave and a versioned .dpf project format.
-- GitHub Pages serves static files only. It does not execute PHP or host MySQL.
+## Selected hosting architecture
 
-## Phase 2: PHP API + MySQL host
-When a suitable PHP host is selected, deploy a REST-style API on a separate HTTPS origin. Configure CORS for the exact frontend origins; CORS is not authentication.
+- **GitHub repository:** source control and backups of the code.
+- **InfinityFree:** serves the frontend and PHP endpoints from the same hostname.
+- **MySQL:** stores account records and cloud projects for DreamByte apps when those features are implemented.
+- **GitHub Pages:** optional static preview only. Its copy is separate from the InfinityFree site and cannot call the InfinityFree API under the free-hosting restrictions.
 
-Suggested endpoints:
-- POST /api/v1/auth/register
-- POST /api/v1/auth/login
-- POST /api/v1/auth/logout
-- GET /api/v1/me
-- GET /api/v1/projects
-- POST /api/v1/projects
-- GET /api/v1/projects/{id}
-- PUT /api/v1/projects/{id}
-- DELETE /api/v1/projects/{id}
-- POST /api/v1/projects/{id}/assets
+InfinityFree's official support says browser-based JavaScript and PHP can work when they share the same hostname. The free hosting security system can block external API clients and cross-origin frontend requests, so do not design this deployment around CORS.
+
+## Frontend and local projects
+
+- Keep drawing and editing in the browser.
+- Add IndexedDB autosave so editable projects persist on the device.
+- Define a versioned `.dpf` project format containing canvas dimensions, pixel data, palette, tool settings and (later) layer metadata.
+- Keep PNG export as an image export, distinct from the editable project format.
+- Cloud sync should be optional; local editing should work without an account.
+
+## PHP API
+
+The current `api/index.php` only provides a database health check. Account and project endpoints are not implemented yet.
+
+For the free-hosting compatibility target, initially use ordinary browser requests to same-host PHP endpoints. Before implementing CRUD routes, verify which HTTP methods are accepted by the current plan. If PUT/DELETE are blocked, use POST action routes rather than relying on those methods.
+
+Planned capabilities:
+- Register/login/logout with secure session handling.
+- Get current user.
+- List, create, load, rename and delete owned projects.
+- Save a versioned editable project document.
+- Share user/account tables across future DreamByte tools using an `app_key` on project records.
 
 ## Shared schema
-- users: internal ID, normalized unique email, unique username, password hash, timestamps.
-- sessions: user ID, hash of random session token, expiry and revocation timestamps.
-- projects: owner user ID, app key (pixelforge; later flow or arcade), name, format version, dimensions, private storage key, timestamps.
-- project_assets: project ID, type, private storage key, MIME type, byte size and checksum.
-- project_versions: project ID, version number, storage key and creation time.
 
-Use InnoDB, utf8mb4, foreign keys, indexes and schema migrations.
+The initial draft is in `database/schema.sql`:
+- `users`: username, email, password hash and timestamps.
+- `sessions`: user ID, hash of a random session token, expiry and revocation timestamps.
+- `projects`: owner, app key, name, format version and editable document data.
+- `project_versions`: saved snapshots for recovery/version history.
+
+The schema is a starting point, not a deployed or fully validated production database. Use InnoDB, utf8mb4, foreign keys and indexes. Apply schema changes deliberately as migrations.
 
 ## Security requirements
+
 - Never place MySQL credentials in browser JavaScript or Git.
-- Keep production secrets outside the public web root.
-- Use PHP password_hash() and password_verify().
+- Keep the real `api/config.php` only on the hosting account; copy it from `api/config.example.php` and fill it in privately.
+- Use PHP `password_hash()` and `password_verify()`.
 - Use PDO prepared statements for SQL values.
-- Use random opaque session tokens; store only token hashes. Cookie sessions should use Secure, HttpOnly and an appropriate SameSite policy; protect cookie-authenticated writes against CSRF.
-- Validate and limit request bodies and uploads; do not trust client filenames or MIME declarations.
-- Store private files outside the public web root where possible and authorize downloads through the API.
-- Rate-limit authentication attempts and back up both database and project files.
+- Generate random opaque session tokens and store only token hashes. Use HTTPS, HttpOnly/Secure cookies and an appropriate SameSite policy; protect cookie-authenticated writes against CSRF.
+- Validate and limit request bodies. Do not trust client filenames or MIME declarations.
+- Enforce ownership checks for every project operation.
+- Rate-limit authentication attempts and back up the database.
+- Never expose raw database errors or credentials in API responses.
 
-## Local-first synchronization
-Local drafts should work without login. Cloud sync should be opt-in. Track local and server versions; show a conflict instead of silently overwriting newer data.
+## Hosting limitations and next steps
 
-## Hosting checklist
-Before selecting a host, verify the current plan allows PHP, persistent MySQL, HTTPS, uploads, API endpoints and cross-origin requests; check quotas, backups, terms and whether payment information is required. Do not enable cloud accounts until a host passes these checks.
+InfinityFree's free hosting is intended for websites accessed in browsers, not a general-purpose API for unrelated external clients. Keep the frontend and API on the same hostname. Other DreamByte apps will need to share that hostname to reuse this backend under the same constraints, or use a different backend host later.
+
+Before enabling cloud accounts, confirm HTTPS is active, create the MySQL database, import `database/schema.sql`, configure `api/config.php) on the server, and test `/api/?action=health`. The deploy guide contains the upload checklist.
