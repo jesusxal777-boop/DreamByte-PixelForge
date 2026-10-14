@@ -1,0 +1,12 @@
+api/config.php
+api/.env
+.env
+.env.*
+!.env.example
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.dpf
+exports/
+local-projects/
