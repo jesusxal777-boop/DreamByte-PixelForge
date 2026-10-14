@@ -56,4 +56,4 @@ The schema is a starting point, not a deployed or fully validated production dat
 
 InfinityFree's free hosting is intended for websites accessed in browsers, not a general-purpose API for unrelated external clients. Keep the frontend and API on the same hostname. Other DreamByte apps will need to share that hostname to reuse this backend under the same constraints, or use a different backend host later.
 
-Before enabling cloud accounts, confirm HTTPS is active, create the MySQL database, import `database/schema.sql`, configure `api/config.php) on the server, and test `/api/?action=health`. The deploy guide contains the upload checklist.
+Before enabling cloud accounts, confirm HTTPS is active, create the MySQL database, import `database/schema.sql`, configure `api/config.php` on the server, and test `/api/?action=health`. The deploy guide contains the upload checklist.
